@@ -5,18 +5,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import com.kampplus.hava.model.TemperatureUnit
 
-/**
- * Açık tema paleti. Her Material rolü ([Color.kt]'deki) bir renge bağlanır:
- * `primary` ana vurgu, `surface` kart zemini, `onSurface` o zemindeki yazı rengidir.
- */
 private val LightColors = lightColorScheme(
-    primary = Teal40,
+    primary = Sky40,
     onPrimary = Neutral99,
-    primaryContainer = Teal90,
-    onPrimaryContainer = Teal10,
-    secondary = Amber40,
-    secondaryContainer = Amber90,
+    primaryContainer = Sky90,
+    onPrimaryContainer = Sky10,
+    secondary = Sun40,
+    secondaryContainer = Sun90,
     background = Neutral99,
     onBackground = Neutral10,
     surface = Neutral99,
@@ -27,13 +26,12 @@ private val LightColors = lightColorScheme(
     error = Red40
 )
 
-/** Koyu tema paleti. Aynı roller, koyu zemine uygun tonlarla. */
 private val DarkColors = darkColorScheme(
-    primary = Teal80,
-    onPrimary = Teal20,
-    primaryContainer = Teal30,
-    onPrimaryContainer = Teal90,
-    secondary = Amber80,
+    primary = Sky80,
+    onPrimary = Sky20,
+    primaryContainer = Sky30,
+    onPrimaryContainer = Sky90,
+    secondary = Sun80,
     background = Neutral10,
     onBackground = Neutral90,
     surface = Neutral10,
@@ -43,16 +41,25 @@ private val DarkColors = darkColorScheme(
 )
 
 /**
- * Uygulamanın teması. Bütün ekranlar bunun içine sarmalanır.
+ * Sıcaklık biriminin ağaçtaki her bileşene taşınması.
  *
- * @param darkTheme Varsayılan olarak telefonun sistem ayarını izler
- *   ([isSystemInDarkTheme]). @Preview'larda elle `true` verip koyu temayı deneyebilirsin.
+ * `CompositionLocal`, parametre olarak elden ele geçirmeden "ortamdaki" değeri okumaya yarar.
+ * Birim ayarı değişince bunu okuyan her ekran kendiliğinden yeniden çizilir.
  */
+val LocalTemperatureUnit = staticCompositionLocalOf { TemperatureUnit.CELSIUS }
+
+/** Açık/koyu tema ile sıcaklık birimini sağlayan kök sarmalayıcı. */
 @Composable
-fun HavaTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = HavaTypography,
-        content = content
-    )
+fun HavaTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    temperatureUnit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    content: @Composable () -> Unit
+) {
+    CompositionLocalProvider(LocalTemperatureUnit provides temperatureUnit) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = HavaTypography,
+            content = content
+        )
+    }
 }

@@ -2,12 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      İnternet izni. Manifest uygulamanın kimlik kartıdır:
-      izin burada bildirilmezse Retrofit isteği çalışma anında başarısız olur.
+      Manifest uygulamanın kimlik kartıdır: izinler, bileşenler (Activity, Receiver,
+      Provider) burada bildirilir. Burada yazılmayan bileşeni Android tanımaz.
     -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Konum: "yaklaşık" izin yeterlidir, "kesin" izin isteğe bağlıdır. Çalışma anında sorulur. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Android 13+ için bildirim izni; günlük hava bildirimi için gerekir. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
+        android:name=".HavaApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -28,6 +36,30 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          BroadcastReceiver: ana ekran widget'ı sistemden "güncelle" yayınını bu sınıf alır.
+        -->
+        <receiver
+            android:name=".widget.WeatherWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_info" />
+        </receiver>
+
+        <!--
+          ContentProvider: favori şehirleri bir tablo gibi sunar. exported="false"
+          olduğundan yalnızca bu uygulama okuyabilir.
+        -->
+        <provider
+            android:name=".provider.FavoritesProvider"
+            android:authorities="com.kampplus.hava.provider"
+            android:exported="false" />
     </application>
 
 </manifest>

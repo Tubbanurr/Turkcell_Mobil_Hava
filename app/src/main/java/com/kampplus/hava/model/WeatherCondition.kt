@@ -21,6 +21,17 @@ enum class WeatherCondition(val emoji: String, val label: String) {
     THUNDERSTORM("⛈️", "Gök gürültülü fırtına"),
     UNKNOWN("🌡️", "Bilinmiyor");
 
+    /** Geceleri güneşli simgeler yerine ay/bulut gösterilir. */
+    fun emoji(isDay: Boolean): String = if (isDay) {
+        emoji
+    } else {
+        when (this) {
+            CLEAR, MAINLY_CLEAR -> "🌙"
+            PARTLY_CLOUDY -> "☁️"
+            else -> emoji
+        }
+    }
+
     companion object {
         /**
          * WMO 4677 kod tablosu. `when` ifadesi birden çok kodu tek bir görünüme eşler

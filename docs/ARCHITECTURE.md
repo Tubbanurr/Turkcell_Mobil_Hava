@@ -83,6 +83,18 @@ Parametreler yol parçası yerine sorgu parametresidir; çünkü `subtitle` boş
 bir yol parçası rotayı eşleşmez hâle getirir. Değerler `Uri.encode` ile kaçışlanır.
 `ForecastViewModel` parametreleri `SavedStateHandle` üzerinden okur.
 
+## Türetilmiş bilgi: saf fonksiyonlar
+
+Öneriler, aktivite puanları ve astronomi hesapları ağa, Android'e ya da ekrana dokunmaz; `Forecast` üzerinde saf fonksiyonlardır (`buildAdvice()`, `planActivity()`, `stargazingTonight()`, `moonPhaseOn()`).
+Bu yüzden JVM'de, emülatörsüz test edilir. Kural eklemek = fonksiyona bir satır eklemek; ekran ve ViewModel değişmez.
+
+Hava kalitesi/polen ayrı bir kaynaktan gelir (`AirQualityRepository`). Hatası tahmin ekranını bozmaz: ViewModel hatayı yutar ve kart gizlenir.
+
+## Bildirim sorumlulukları
+
+`Notifier` arayüzü (kanal kurar, izin/engel durumunu söyler, bildirimi gösterir) ve `WeatherSyncer` (veriyi çeker, öneri üretir) ayrıdır.
+Ayarlar'daki "Şimdi dene" düğmesi WorkManager'a gitmez; `SettingsViewModel` doğrudan veriyi çekip `Notifier.show` çağırır ve sonucu Snackbar ile bildirir. Kanal önemi sonradan yükseltilemediği için kanal kimliği `daily_weather_v2`'dir.
+
 ## Genişletme noktaları
 
 | Senaryo | Eklenir | Değişir | Dokunulmaz |
@@ -90,4 +102,6 @@ bir yol parçası rotayı eşleşmez hâle getirir. Değerler `Uri.encode` ile k
 | Yeni hava durumu görünümü | `WeatherCondition`'a yeni sabit | `fromWeatherCode` içindeki `when` | Ekranlar, ViewModel'ler |
 | Yeni hava değişkeni (ör. UV) | `CurrentResponse` + `CurrentWeather` alanı (varsayılanlı) | `ForecastApi.CURRENT_FIELDS`, ekran | Repository, ViewModel |
 | Farklı veri kaynağı | Yeni `CityRepository` implementasyonu | ViewModel'in varsayılan parametresi | Ekranlar, model |
+| Yeni aktivite (ör. bisiklet) | `Activity` enum sabiti + `planActivity` içinde saat penceresi/puan kuralı | Hiçbiri | Ekran, ViewModel |
+| Yeni öneri kuralı | `buildAdvice()` içine bir `xAdvice()` fonksiyonu | Hiçbiri | Ekran, bildirim |
 | Sabit şehir listesine dönüş | `CityCatalog` sınıfı | `CityRepository` implementasyonu | Her şey |

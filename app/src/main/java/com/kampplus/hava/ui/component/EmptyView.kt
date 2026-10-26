@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,13 +17,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.kampplus.hava.ui.theme.HavaTheme
+import com.kampplus.hava.ui.weather.SkyBackground
+import com.kampplus.hava.ui.weather.SkyPalette
 
 /**
  * "Sonuç yok" durumunun görünümü.
  *
  * Boş ekran bırakmak kullanıcıyı yalnız bırakır: uygulama mı bozuldu, internet mi yok,
  * yoksa gerçekten sonuç mu yok? Bu bileşeni her zaman bir başlık ve mümkünse bir
- * yönlendirme mesajıyla gösteririz.
+ * yönlendirme mesajıyla gösteririz. Renkleri bulunduğu zeminin içerik renginden alır.
  */
 @Composable
 fun EmptyView(title: String, modifier: Modifier = Modifier, message: String? = null) {
@@ -36,7 +39,7 @@ fun EmptyView(title: String, modifier: Modifier = Modifier, message: String? = n
             // Dekoratif ikon; ekran okuyucu atlasın diye contentDescription = null.
             contentDescription = null,
             modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.primary
+            tint = LocalContentColor.current.copy(alpha = 0.85f)
         )
         Text(
             text = title,
@@ -48,20 +51,22 @@ fun EmptyView(title: String, modifier: Modifier = Modifier, message: String? = n
             Text(
                 text = it,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalContentColor.current.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center
             )
         }
     }
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
 private fun EmptyViewPreview() {
     HavaTheme {
-        EmptyView(
-            title = "Şehir bulunamadı",
-            message = "Yazımı kontrol et ya da başka bir şehir dene."
-        )
+        SkyBackground(SkyPalette.Calm) {
+            EmptyView(
+                title = "Şehir bulunamadı",
+                message = "Yazımı kontrol et ya da başka bir şehir dene."
+            )
+        }
     }
 }

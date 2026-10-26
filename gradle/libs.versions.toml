@@ -12,6 +12,11 @@ okhttp = "4.12.0"
 junit = "4.13.2"
 spotless = "7.2.1"
 ktlint = "1.7.1"
+ksp = "2.2.20-2.0.3"
+room = "2.8.1"
+datastore = "1.1.7"
+work = "2.10.5"
+playServicesLocation = "21.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,10 +46,23 @@ retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-
 # Testlerde gercek bir sunucu yerine sahte sunucu ayaga kaldirmak icin.
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 
+# Room: cihaz ici SQLite veritabani (favoriler, gecmis). Derleyici KSP ile calisir.
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+# DataStore: ayarlar (tema, birim...) icin anahtar-deger deposu.
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+# WorkManager: arka planda zamanli is (gunluk bildirim).
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+# Konum: FusedLocationProviderClient.
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
+
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

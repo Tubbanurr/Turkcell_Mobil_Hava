@@ -59,6 +59,34 @@ com.kampplus.hava
 - `weather_code` WMO standardındadır (0 açık, 61 yağmur, 95 fırtına…); `WeatherCondition.fromWeatherCode` ile görünüme çevrilir.
 - Ücretsiz kullanım ticari olmayan projeler içindir (~10.000 istek/gün).
 
+## Clima 2.0 — gelişmiş özellikler
+
+Hava durumuna göre değişen gökyüzü arayüzü (gündüz/gece, yağmur, kar, yıldız, bulut efektleri) ve şunlar eklendi:
+
+| Özellik | Teknoloji |
+|---|---|
+| Favoriler, arama geçmişi | Room (KSP) |
+| Tema (sistem/açık/koyu), °C/°F, ana şehir | DataStore Preferences |
+| Konuma göre hava | Fused Location + çalışma anı izni |
+| Günlük sabah bildirimi | WorkManager + `POST_NOTIFICATIONS` |
+| Ana ekran widget'ı | `AppWidgetProvider` + RemoteViews |
+| Favorileri dışa açan tablo | `ContentProvider` (exported=false) |
+| Paylaş | `ACTION_SEND` share intent |
+| Gezinti | Alt çubuk: Bugün · Şehirler · Ayarlar |
+| Günlük öneriler (şemsiye, giyim, UV, rüzgâr, **basınç/migren uyarısı**) | Saf Kotlin kuralları: `Forecast.buildAdvice()` |
+| 24 saatlik sıcaklık eğrisi | Compose `Canvas` + `TextMeasurer` |
+| **Aktivite planlayıcı** (koşu, kamp, mangal, fotoğraf, araç yıkama) | `Forecast.planActivity()` ile gün başına en iyi saat puanı |
+| **Hava kalitesi, polen ve toz** | Open-Meteo Air Quality API (anahtar gerekmez) |
+| **Gökyüzü ve astronomi** (ay evresi, yıldız gözlemi puanı, meteor yağmurları) | Saf hesap: `moonPhaseOn()`, `stargazingTonight()` |
+| Çekerek yenile | `PullToRefreshBox` |
+| Test bildirimi | `SettingsViewModel` doğrudan veri çekip gösterir; Snackbar ile sonucu söyler |
+
+Bilerek eklenmeyenler: akıllı alarm (kesin alarm izni gerektirir), canlı topluluk raporları (sunucu gerekir), küf ve ışık kirliliği (ücretsiz veri kaynağı yok; kart bunu açıkça belirtir).
+
+Bağımlılıklar `AppContainer` (elle DI) ile kurulur; ViewModel'ler `viewModelFactory { initializer { } }` ile üretilir.
+
+> **Derleme için JDK 21 gerekir.** Android Studio'nun JBR 21'i kullanılmalı; JDK 25 ile Gradle hata verir.
+
 ## Çalıştırma
 
 ```bash

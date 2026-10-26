@@ -19,12 +19,16 @@ object ApiClient {
 
     private const val GEOCODING_BASE_URL = "https://geocoding-api.open-meteo.com/"
     private const val FORECAST_BASE_URL = "https://api.open-meteo.com/"
+    private const val AIR_QUALITY_BASE_URL = "https://air-quality-api.open-meteo.com/"
 
     /** Şehir arama istemcisi. Kullanımı: `ApiClient.cityApi.search("Ankara")` */
     val cityApi: CityApi by lazy { createApi(GEOCODING_BASE_URL) }
 
     /** Hava tahmini istemcisi. */
     val forecastApi: ForecastApi by lazy { createApi(FORECAST_BASE_URL) }
+
+    /** Hava kalitesi (AQI, PM2.5, PM10) istemcisi. */
+    val airQualityApi: AirQualityApi by lazy { createApi(AIR_QUALITY_BASE_URL) }
 
     /**
      * Verilen adres için bir Retrofit arayüzü üretir.

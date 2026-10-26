@@ -43,7 +43,11 @@ data class CurrentResponse(
     @SerializedName("relative_humidity_2m")
     val relativeHumidity: Int? = null,
     @SerializedName("wind_speed_10m")
-    val windSpeed: Double? = null
+    val windSpeed: Double? = null,
+    @SerializedName("is_day")
+    val isDay: Int? = null,
+    @SerializedName("surface_pressure")
+    val pressure: Double? = null
 )
 
 data class HourlyResponse(
@@ -53,7 +57,13 @@ data class HourlyResponse(
     @SerializedName("weather_code")
     val weatherCode: List<Int?>? = null,
     @SerializedName("precipitation_probability")
-    val precipitationProbability: List<Int?>? = null
+    val precipitationProbability: List<Int?>? = null,
+    @SerializedName("surface_pressure")
+    val pressure: List<Double?>? = null,
+    @SerializedName("cloud_cover")
+    val cloudCover: List<Int?>? = null,
+    @SerializedName("wind_speed_10m")
+    val windSpeed: List<Double?>? = null
 )
 
 data class DailyResponse(
@@ -65,7 +75,11 @@ data class DailyResponse(
     @SerializedName("temperature_2m_min")
     val temperatureMin: List<Double?>? = null,
     @SerializedName("precipitation_probability_max")
-    val precipitationProbabilityMax: List<Int?>? = null
+    val precipitationProbabilityMax: List<Int?>? = null,
+    val sunrise: List<String?>? = null,
+    val sunset: List<String?>? = null,
+    @SerializedName("uv_index_max")
+    val uvIndexMax: List<Double?>? = null
 )
 
 /**
@@ -91,7 +105,10 @@ private fun CurrentResponse.toCurrentWeather() = CurrentWeather(
     observedAt = LocalDateTime.parse(time),
     apparentTemperatureC = apparentTemperature,
     humidityPercent = relativeHumidity,
-    windSpeedKmh = windSpeed
+    windSpeedKmh = windSpeed,
+    // Alan gelmezse gündüz varsayılır; ekran yine de çalışır.
+    isDay = isDay != 0,
+    pressureHpa = pressure
 )
 
 /**
@@ -110,7 +127,10 @@ private fun HourlyResponse?.toHourlyForecasts(): List<HourlyForecast> {
             time = LocalDateTime.parse(times[index]),
             temperatureC = temperature,
             weatherCode = code,
-            precipitationProbability = precipitationProbability?.getOrNull(index)
+            precipitationProbability = precipitationProbability?.getOrNull(index),
+            pressureHpa = pressure?.getOrNull(index),
+            cloudCoverPercent = cloudCover?.getOrNull(index),
+            windSpeedKmh = windSpeed?.getOrNull(index)
         )
     }
 }
@@ -127,7 +147,10 @@ private fun DailyResponse?.toDailyForecasts(): List<DailyForecast> {
             minTemperatureC = min,
             maxTemperatureC = max,
             weatherCode = code,
-            precipitationProbability = precipitationProbabilityMax?.getOrNull(index)
+            precipitationProbability = precipitationProbabilityMax?.getOrNull(index),
+            sunrise = sunrise?.getOrNull(index)?.let(LocalDateTime::parse),
+            sunset = sunset?.getOrNull(index)?.let(LocalDateTime::parse),
+            uvIndexMax = uvIndexMax?.getOrNull(index)
         )
     }
 }

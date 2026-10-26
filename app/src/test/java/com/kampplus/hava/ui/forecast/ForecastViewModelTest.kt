@@ -1,6 +1,9 @@
 package com.kampplus.hava.ui.forecast
 
 import androidx.lifecycle.SavedStateHandle
+import com.kampplus.hava.testing.FakeAirQualityRepository
+import com.kampplus.hava.testing.FakeFavoritesRepository
+import com.kampplus.hava.testing.FakeSettingsRepository
 import com.kampplus.hava.testing.FakeWeatherRepository
 import com.kampplus.hava.testing.MainDispatcherRule
 import com.kampplus.hava.ui.LoadState
@@ -26,6 +29,8 @@ class ForecastViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeWeatherRepository()
+    private val favorites = FakeFavoritesRepository()
+    private val airQuality = FakeAirQualityRepository()
 
     private fun createViewModel(
         name: String = "Ankara",
@@ -41,22 +46,27 @@ class ForecastViewModelTest {
                 ForecastViewModel.ARG_LONGITUDE to longitude
             )
         ),
-        repository = repository
+        weather = repository,
+        favorites = favorites,
+        airQuality = airQuality,
+        settings = FakeSettingsRepository()
     )
 
     @Test
-    fun `rota parametreleri okunur`() {
+    fun `rota parametreleri okunur`() = runTest {
         val viewModel = createViewModel()
+        advanceUntilIdle()
 
-        assertEquals("Ankara", viewModel.cityName)
-        assertEquals("Ankara, Türkiye", viewModel.subtitle)
+        val place = viewModel.uiState.value.place
+        assertEquals("Ankara", place?.name)
+        assertEquals("Ankara, Türkiye", place?.subtitle)
     }
 
     @Test
     fun `baslangicta Loading gosterilir`() = runTest {
         val viewModel = createViewModel()
 
-        assertEquals(LoadState.Loading, viewModel.uiState.value)
+        assertEquals(LoadState.Loading, viewModel.uiState.value.forecast)
     }
 
     @Test
@@ -64,7 +74,7 @@ class ForecastViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
+        val state = viewModel.uiState.value.forecast
         assertTrue("Success bekleniyordu, gelen: $state", state is LoadState.Success)
         assertEquals(21.0, (state as LoadState.Success).data.current.temperatureC, 0.01)
     }
@@ -78,7 +88,7 @@ class ForecastViewModelTest {
 
         assertEquals(
             "İnternet bağlantını kontrol et.",
-            (viewModel.uiState.value as LoadState.Error).message
+            (viewModel.uiState.value.forecast as LoadState.Error).message
         )
     }
 
@@ -90,7 +100,7 @@ class ForecastViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is LoadState.Error)
+        assertTrue(viewModel.uiState.value.forecast is LoadState.Error)
     }
 
     @Test
@@ -98,13 +108,13 @@ class ForecastViewModelTest {
         repository.error = IOException("no network")
         val viewModel = createViewModel()
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value is LoadState.Error)
+        assertTrue(viewModel.uiState.value.forecast is LoadState.Error)
 
         repository.error = null
         viewModel.onRetry()
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is LoadState.Success)
+        assertTrue(viewModel.uiState.value.forecast is LoadState.Success)
         assertEquals(2, repository.callCount)
     }
 
@@ -114,6 +124,51 @@ class ForecastViewModelTest {
         advanceUntilIdle()
 
         // toDoubleOrNull() null dönünce 0.0 kullanılır; istek yine de yapılır.
-        assertTrue(viewModel.uiState.value is LoadState.Success)
+        assertTrue(viewModel.uiState.value.forecast is LoadState.Success)
+    }
+
+    @Test
+    fun `favori degistirilir`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        assertTrue(!viewModel.uiState.value.isFavorite)
+
+        viewModel.onToggleFavorite()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isFavorite)
+    }
+
+    @Test
+    fun `hava kalitesi yuklenir`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(35, viewModel.uiState.value.airQuality?.europeanAqi)
+    }
+
+    @Test
+    fun `hava kalitesi hatasi tahmini bozmaz`() = runTest {
+        airQuality.error = IOException("no network")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.forecast is LoadState.Success)
+        assertEquals(null, viewModel.uiState.value.airQuality)
+    }
+
+    @Test
+    fun `yenileme basarisiz olursa eski tahmin ekranda kalir`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        repository.error = IOException("no network")
+        viewModel.onRefresh()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.forecast is LoadState.Success)
+        assertTrue(!viewModel.uiState.value.isRefreshing)
+        assertEquals("İnternet bağlantını kontrol et.", viewModel.message.value)
     }
 }

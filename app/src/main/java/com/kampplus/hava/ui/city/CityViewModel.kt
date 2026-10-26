@@ -1,91 +1,131 @@
 package com.kampplus.hava.ui.city
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.google.gson.JsonSyntaxException
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.kampplus.hava.appContainer
 import com.kampplus.hava.data.CityRepository
-import com.kampplus.hava.data.OpenMeteoCityRepository
+import com.kampplus.hava.data.FavoritesRepository
+import com.kampplus.hava.data.HistoryRepository
 import com.kampplus.hava.model.City
+import com.kampplus.hava.model.Place
+import com.kampplus.hava.model.toPlace
 import com.kampplus.hava.ui.LoadState
-import java.io.IOException
+import com.kampplus.hava.ui.emptyIfNoItems
+import com.kampplus.hava.ui.loadState
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 /**
- * Şehir listesi ekranının beyni.
+ * Şehirler sekmesinin ekran durumu.
  *
- * Görev dağılımı:
- * - Ekran (Composable) yalnızca çizer.
- * - ViewModel state'i tutar ve kararları verir.
- * - Repository veriyi getirir.
+ * @param results `null` = henüz arama yapılmadı (favoriler ve geçmiş gösterilir).
+ */
+data class CityUiState(
+    val query: String = "",
+    val results: LoadState<List<City>>? = null,
+    val favorites: List<Place> = emptyList(),
+    val history: List<Place> = emptyList()
+)
+
+/**
+ * Şehir arama + favoriler + geçmiş.
  *
- * ViewModel ekran döndüğünde (Activity yeniden kurulurken) yaşamaya devam eder;
- * bu yüzden arama metni ve sonuçlar kaybolmaz.
- *
- * @param repository Varsayılanı gerçek servis. Testlerde sahte bir repository verilir.
- *   Tüm parametrelerin varsayılanı olduğu için Kotlin parametresiz bir kurucu da üretir;
- *   ekranlarda `viewModel()` bunu kullanabilir.
+ * Görev dağılımı: ekran çizer, ViewModel kararları verir, repository'ler veriyi getirir.
  */
 class CityViewModel(
-    private val repository: CityRepository = OpenMeteoCityRepository()
+    private val repository: CityRepository,
+    private val favoritesRepository: FavoritesRepository,
+    private val historyRepository: HistoryRepository
 ) : ViewModel() {
 
-    // State ViewModel'de MutableStateFlow ile tutulur.
-    // Değiştirilebilir alan private'tır; dışarıya yalnızca okunabilir hâli açılır.
-    private val _query = MutableStateFlow(INITIAL_QUERY)
-    val query: StateFlow<String> = _query.asStateFlow()
+    private val query = MutableStateFlow("")
+    private val results = MutableStateFlow<LoadState<List<City>>?>(null)
+    private var searchJob: Job? = null
 
-    private val _uiState = MutableStateFlow<LoadState<List<City>>>(LoadState.Loading)
-    val uiState: StateFlow<LoadState<List<City>>> = _uiState.asStateFlow()
+    val uiState: StateFlow<CityUiState> = combine(
+        query,
+        results,
+        favoritesRepository.favorites,
+        historyRepository.recent,
+        ::CityUiState
+    ).stateIn(viewModelScope, SharingStarted.Eagerly, CityUiState())
 
     init {
-        // Ekran boş açılmasın diye açılışta bir arama yapılır.
-        search()
+        // Kullanıcı yazmayı bırakınca (DEBOUNCE) kendiliğinden arar; her harfte istek atılmaz.
+        viewModelScope.launch {
+            @OptIn(FlowPreview::class)
+            query.debounce(SEARCH_DEBOUNCE_MS)
+                .map { it.trim() }
+                .distinctUntilChanged()
+                .collect { text ->
+                    if (text.length >= MIN_QUERY_LENGTH) runSearch(text) else clearResults()
+                }
+        }
     }
 
     /** Kullanıcı arama kutusuna her harf yazdığında çağrılır. */
     fun onQueryChange(newQuery: String) {
-        _query.value = newQuery
+        query.value = newQuery
+        if (newQuery.isBlank()) clearResults()
     }
 
-    /**
-     * Aramayı çalıştırır ve sonucu dört durumdan birine çevirir.
-     *
-     * `viewModelScope.launch`: yeni bir coroutine başlatır. Ekran kapanırsa bu kapsam
-     * işi otomatik iptal eder, yarıda kalan istek sızıntı yapmaz.
-     */
+    /** Klavyedeki "Ara" tuşu ve "Tekrar dene": beklemeden hemen arar. */
     fun search() {
-        viewModelScope.launch {
-            _uiState.value = LoadState.Loading
-            _uiState.value = try {
-                val cities = repository.search(_query.value)
-                // Cevap geldi ama içi boş: bu bir hata değil, "Empty" durumudur.
-                if (cities.isEmpty()) LoadState.Empty else LoadState.Success(cities)
-            } catch (e: IOException) {
-                // İnternet yok, DNS çözülemedi veya zaman aşımı.
-                Log.e(TAG, "Arama başarısız: bağlantı hatası", e)
-                LoadState.Error("İnternet bağlantını kontrol et.")
-            } catch (e: HttpException) {
-                // Sunucu yanıt verdi ama 4xx/5xx döndü.
-                Log.e(TAG, "Arama başarısız: HTTP ${e.code()}", e)
-                LoadState.Error("Sunucu şu an cevap vermiyor.")
-            } catch (e: JsonSyntaxException) {
-                // Beklenmeyen JSON: model ile yanıt uyuşmuyor.
-                Log.e(TAG, "Arama başarısız: yanıt çözümlenemedi", e)
-                LoadState.Error("Bir şeyler ters gitti. Tekrar dene.")
-            }
-            // Kullanıcıya sade mesaj, Logcat'e teknik ayrıntı.
+        val text = query.value.trim()
+        if (text.length >= MIN_QUERY_LENGTH) runSearch(text)
+    }
+
+    /** Bir yer açıldığında geçmişe yazılır. */
+    fun onPlaceOpened(place: Place) {
+        viewModelScope.launch { historyRepository.record(place) }
+    }
+
+    fun onCityOpened(city: City) = onPlaceOpened(city.toPlace())
+
+    fun onRemoveFavorite(place: Place) {
+        viewModelScope.launch { favoritesRepository.remove(place) }
+    }
+
+    fun onClearHistory() {
+        viewModelScope.launch { historyRepository.clear() }
+    }
+
+    private fun runSearch(text: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            results.value = LoadState.Loading
+            results.value = loadState(TAG) { repository.search(text) }.emptyIfNoItems()
         }
     }
 
-    private companion object {
-        const val TAG = "CityViewModel"
+    private fun clearResults() {
+        searchJob?.cancel()
+        results.value = null
+    }
 
-        /** Uygulama ilk açıldığında aranan şehir. */
-        const val INITIAL_QUERY = "İstanbul"
+    companion object {
+        private const val TAG = "CityViewModel"
+        const val SEARCH_DEBOUNCE_MS = 400L
+        const val MIN_QUERY_LENGTH = 2
+
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val container = appContainer()
+                CityViewModel(container.cityRepository, container.favoritesRepository, container.historyRepository)
+            }
+        }
     }
 }

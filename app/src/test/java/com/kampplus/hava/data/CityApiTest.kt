@@ -98,4 +98,20 @@ class CityApiTest {
         assertTrue("count varsayilani 10 olmali: $path", path.contains("count=10"))
         assertTrue("language varsayilani tr olmali: $path", path.contains("language=tr"))
     }
+
+    @Test
+    fun `turkce karakterler UTF-8 olarak gonderilir ve okunur`() = runTest {
+        server.enqueue(
+            MockResponse()
+                .setHeader("Content-Type", "application/json; charset=utf-8")
+                .setBody("""{"results":[{"id":298333,"name":"Şanlıurfa","latitude":37.1,"longitude":38.8}]}""")
+        )
+
+        val city = checkNotNull(api.search("şanlıurfa İğdır").results).first()
+
+        val path = checkNotNull(server.takeRequest().path)
+        // ş=%C5%9F ı=%C4%B1 İ=%C4%B0 ğ=%C4%9F: yüzde-kodlu UTF-8 baytları.
+        assertTrue("Turkce karakterler UTF-8 kodlanmali: $path", path.contains("name=%C5%9Fanl%C4%B1urfa%20%C4%B0%C4%9Fd%C4%B1r"))
+        assertEquals("Şanlıurfa", city.name)
+    }
 }

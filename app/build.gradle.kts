@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -18,8 +19,8 @@ android {
         // targetSdk: davranislarin hangi surume gore ayarlanacagi.
         targetSdk = 36
         // versionCode sayisal surum kodu, versionName kullaniciya gosterilen surum.
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -92,6 +93,14 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.core)
 
     implementation(libs.kotlinx.coroutines.android)
+
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)

@@ -1,88 +1,67 @@
 package com.kampplus.hava.ui.forecast
 
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
-import com.google.gson.JsonSyntaxException
-import com.kampplus.hava.data.OpenMeteoWeatherRepository
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.kampplus.hava.appContainer
+import com.kampplus.hava.data.AirQualityRepository
+import com.kampplus.hava.data.FavoritesRepository
+import com.kampplus.hava.data.SettingsRepository
 import com.kampplus.hava.data.WeatherRepository
-import com.kampplus.hava.model.Forecast
-import com.kampplus.hava.ui.LoadState
-import java.io.IOException
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.kampplus.hava.model.Place
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 /**
- * Tahmin ekranının beyni. [com.kampplus.hava.ui.city.CityViewModel] ile aynı desen.
+ * Seçilen bir şehrin detay ekranı. Yer, navigasyon rotasından gelir.
  *
- * Fark: hangi şehrin tahmini isteneceğini navigasyondan öğrenir.
- * `SavedStateHandle` rota parametrelerini taşır ve süreç
- * öldürülüp geri dönüldüğünde de bu değerler korunur.
+ * `SavedStateHandle` rota parametrelerini taşır; süreç öldürülüp geri dönüldüğünde de korunur.
  */
 class ForecastViewModel(
     savedStateHandle: SavedStateHandle,
-    private val repository: WeatherRepository
-) : ViewModel() {
+    weather: WeatherRepository,
+    favorites: FavoritesRepository,
+    airQuality: AirQualityRepository,
+    private val settings: SettingsRepository
+) : PlaceForecastViewModel(flowOf(savedStateHandle.toPlace()), weather, favorites, airQuality) {
 
-    /**
-     * Compose'un `viewModel()` yardımcısı, tam olarak `(SavedStateHandle)` imzalı bir
-     * kurucu arar. Varsayılan parametre kullanmak bu imzayı üretmediği için ikincil
-     * kurucuyu elle yazıyoruz.
-     */
-    constructor(savedStateHandle: SavedStateHandle) : this(savedStateHandle, OpenMeteoWeatherRepository())
-
-    /** Başlıkta gösterilecek şehir adı; rotadan gelir. */
-    val cityName: String = savedStateHandle.get<String>(ARG_NAME).orEmpty()
-
-    /** Başlığın altındaki "Ankara, Türkiye" satırı. */
-    val subtitle: String = savedStateHandle.get<String>(ARG_SUBTITLE).orEmpty()
-
-    private val latitude: Double = savedStateHandle.get<String>(ARG_LATITUDE)?.toDoubleOrNull() ?: 0.0
-    private val longitude: Double = savedStateHandle.get<String>(ARG_LONGITUDE)?.toDoubleOrNull() ?: 0.0
-
-    private val _uiState = MutableStateFlow<LoadState<Forecast>>(LoadState.Loading)
-    val uiState: StateFlow<LoadState<Forecast>> = _uiState.asStateFlow()
-
-    init {
-        load()
-    }
-
-    /** Hata ekranındaki "Tekrar dene" düğmesi buraya bağlanır. */
-    fun onRetry() = load()
-
-    private fun load() {
+    /** "Ana şehir yap": ana sekmede bu yer gösterilir, widget ve bildirim de buna göre çalışır. */
+    fun onSetAsHome() {
+        val current = currentPlace() ?: return
         viewModelScope.launch {
-            _uiState.value = LoadState.Loading
-            _uiState.value = try {
-                LoadState.Success(repository.getForecast(latitude, longitude))
-            } catch (e: IOException) {
-                Log.e(TAG, "Tahmin alınamadı: bağlantı hatası", e)
-                LoadState.Error("İnternet bağlantını kontrol et.")
-            } catch (e: HttpException) {
-                Log.e(TAG, "Tahmin alınamadı: HTTP ${e.code()}", e)
-                LoadState.Error("Sunucu şu an cevap vermiyor.")
-            } catch (e: JsonSyntaxException) {
-                Log.e(TAG, "Tahmin alınamadı: yanıt çözümlenemedi", e)
-                LoadState.Error("Bir şeyler ters gitti. Tekrar dene.")
-            } catch (e: IllegalStateException) {
-                // ForecastResponse.toForecast(), "current" bloğu yoksa bunu fırlatır.
-                Log.e(TAG, "Tahmin alınamadı: eksik veri", e)
-                LoadState.Error("Bir şeyler ters gitti. Tekrar dene.")
-            }
+            settings.setHomePlace(current)
+            showMessage("${current.name} ana şehir yapıldı.")
         }
     }
 
     companion object {
-        private const val TAG = "ForecastViewModel"
-
         /** Rota parametrelerinin adları; [com.kampplus.hava.ui.HavaNavHost] ile ortak. */
         const val ARG_NAME = "name"
         const val ARG_SUBTITLE = "subtitle"
         const val ARG_LATITUDE = "latitude"
         const val ARG_LONGITUDE = "longitude"
+
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val container = appContainer()
+                ForecastViewModel(
+                    createSavedStateHandle(),
+                    container.weatherRepository,
+                    container.favoritesRepository,
+                    container.airQualityRepository,
+                    container.settingsRepository
+                )
+            }
+        }
     }
 }
+
+private fun SavedStateHandle.toPlace() = Place(
+    name = get<String>(ForecastViewModel.ARG_NAME).orEmpty(),
+    subtitle = get<String>(ForecastViewModel.ARG_SUBTITLE).orEmpty(),
+    latitude = get<String>(ForecastViewModel.ARG_LATITUDE)?.toDoubleOrNull() ?: 0.0,
+    longitude = get<String>(ForecastViewModel.ARG_LONGITUDE)?.toDoubleOrNull() ?: 0.0
+)

@@ -1,28 +1,24 @@
 package com.kampplus.hava.ui.city
 
 import com.kampplus.hava.testing.FakeCityRepository
+import com.kampplus.hava.testing.FakeFavoritesRepository
+import com.kampplus.hava.testing.FakeHistoryRepository
 import com.kampplus.hava.testing.MainDispatcherRule
 import com.kampplus.hava.testing.sampleCity
+import com.kampplus.hava.testing.samplePlace
 import com.kampplus.hava.ui.LoadState
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import retrofit2.HttpException
-import retrofit2.Response
 
-/**
- * Şehir listesi ekranının dört durumunu doğrular.
- *
- * Temel kural: her istek Loading ile başlar ve
- * Success / Empty / Error'dan biriyle biter.
- */
+/** Şehir arama, favori ve geçmiş davranışlarını doğrular. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CityViewModelTest {
 
@@ -30,119 +26,127 @@ class CityViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeCityRepository()
+    private val favorites = FakeFavoritesRepository()
+    private val history = FakeHistoryRepository()
 
-    private fun createViewModel() = CityViewModel(repository)
+    private fun createViewModel() = CityViewModel(repository, favorites, history)
 
     @Test
-    fun `baslangicta Loading gosterilir`() = runTest {
+    fun `baslangicta arama yapilmaz`() = runTest {
         val viewModel = createViewModel()
+        advanceUntilIdle()
 
-        // advanceUntilIdle çağrılmadan önce init içindeki arama henüz bitmemiştir.
-        assertEquals(LoadState.Loading, viewModel.uiState.value)
+        assertNull(viewModel.uiState.value.results)
+        assertEquals(0, repository.callCount)
     }
 
     @Test
-    fun `acilista otomatik arama yapilir`() = runTest {
+    fun `yazmayi birakinca debounce sonrasi arar`() = runTest {
         repository.result = listOf(sampleCity())
-
         val viewModel = createViewModel()
         advanceUntilIdle()
 
+        viewModel.onQueryChange("Ank")
+        advanceTimeBy(CityViewModel.SEARCH_DEBOUNCE_MS - 1)
+        assertEquals(0, repository.callCount)
+
+        advanceUntilIdle()
         assertEquals(1, repository.callCount)
-        assertEquals("İstanbul", viewModel.query.value)
+        assertTrue(viewModel.uiState.value.results is LoadState.Success)
     }
 
     @Test
-    fun `veri gelince Success durumuna gecilir`() = runTest {
-        repository.result = listOf(sampleCity(), sampleCity(id = 2L, name = "İzmir"))
-
+    fun `cok kisa metin arama baslatmaz`() = runTest {
         val viewModel = createViewModel()
+        viewModel.onQueryChange("A")
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertTrue("Success bekleniyordu, gelen: $state", state is LoadState.Success)
-        assertEquals(2, (state as LoadState.Success).data.size)
+        assertEquals(0, repository.callCount)
     }
 
     @Test
     fun `bos liste Empty durumuna cevrilir`() = runTest {
-        // Cevap geldi ama içi boş: bu bir hata değildir.
-        repository.result = emptyList()
-
         val viewModel = createViewModel()
+        viewModel.onQueryChange("Zzz")
         advanceUntilIdle()
 
-        assertEquals(LoadState.Empty, viewModel.uiState.value)
+        assertEquals(LoadState.Empty, viewModel.uiState.value.results)
     }
 
     @Test
     fun `baglanti hatasi anlasilir mesaja cevrilir`() = runTest {
         repository.error = IOException("no network")
-
         val viewModel = createViewModel()
+        viewModel.onQueryChange("Ankara")
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
+        val state = viewModel.uiState.value.results
         assertTrue("Error bekleniyordu, gelen: $state", state is LoadState.Error)
-        // Kullanıcıya teknik mesaj değil, insan dilinde bir cümle gösterilir.
         assertEquals("İnternet bağlantını kontrol et.", (state as LoadState.Error).message)
     }
 
     @Test
-    fun `sunucu hatasi farkli mesaj gosterir`() = runTest {
-        repository.error = HttpException(
-            Response.error<Unit>(500, "".toResponseBody("application/json".toMediaType()))
-        )
-
+    fun `search beklemeden hemen arar ve tekrar dene calisir`() = runTest {
+        repository.error = IOException("no network")
         val viewModel = createViewModel()
-        advanceUntilIdle()
-
-        assertEquals(
-            "Sunucu şu an cevap vermiyor.",
-            (viewModel.uiState.value as LoadState.Error).message
-        )
-    }
-
-    @Test
-    fun `onQueryChange arama metnini gunceller ama istek atmaz`() = runTest {
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-        val callsAfterInit = repository.callCount
-
         viewModel.onQueryChange("Rize")
         advanceUntilIdle()
 
-        assertEquals("Rize", viewModel.query.value)
-        // Her harfte istek atılmaz; arama yalnızca search() ile tetiklenir.
-        assertEquals(callsAfterInit, repository.callCount)
-    }
-
-    @Test
-    fun `search guncel metinle istek atar`() = runTest {
-        val viewModel = createViewModel()
-        advanceUntilIdle()
-
-        viewModel.onQueryChange("Rize")
+        repository.error = null
+        repository.result = listOf(sampleCity(name = "Rize"))
         viewModel.search()
         advanceUntilIdle()
 
         assertEquals("Rize", repository.lastQuery)
+        assertTrue(viewModel.uiState.value.results is LoadState.Success)
     }
 
     @Test
-    fun `tekrar dene yeni bir istek baslatir ve basarili olabilir`() = runTest {
-        repository.error = IOException("no network")
+    fun `kutu bosaltilinca sonuclar temizlenir`() = runTest {
+        repository.result = listOf(sampleCity())
+        val viewModel = createViewModel()
+        viewModel.onQueryChange("Ankara")
+        advanceUntilIdle()
+
+        viewModel.onQueryChange("")
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.results)
+    }
+
+    @Test
+    fun `acilan yer gecmise yazilir ve temizlenebilir`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onPlaceOpened(samplePlace("Ankara"))
+        advanceUntilIdle()
+        assertEquals(listOf("Ankara"), viewModel.uiState.value.history.map { it.name })
+
+        viewModel.onClearHistory()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.history.isEmpty())
+    }
+
+    @Test
+    fun `favoriler listelenir ve kaldirilir`() = runTest {
+        favorites.toggle(samplePlace("İzmir"))
         val viewModel = createViewModel()
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value is LoadState.Error)
+        assertEquals(1, viewModel.uiState.value.favorites.size)
 
-        // Bağlantı geri geldi.
-        repository.error = null
-        repository.result = listOf(sampleCity())
-        viewModel.search()
+        viewModel.onRemoveFavorite(samplePlace("İzmir"))
         advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.favorites.isEmpty())
+    }
 
-        assertTrue(viewModel.uiState.value is LoadState.Success)
-        assertEquals(2, repository.callCount)
+    @Test
+    fun `turkce karakterli sorgu degistirilmeden aranir`() = runTest {
+        repository.result = listOf(sampleCity())
+        val viewModel = createViewModel()
+
+        listOf("Eskişehir", "ŞANLIURFA", "Iğdır", "İstanbul", "çanakkale", "Öğütlü").forEach { query ->
+            viewModel.onQueryChange(query)
+            advanceUntilIdle()
+            assertEquals(query, repository.lastQuery)
+        }
     }
 }
