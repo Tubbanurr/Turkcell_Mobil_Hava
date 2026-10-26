@@ -1,3 +1,73 @@
 <resources>
-    <string name="app_name">HAVATURK</string>
+    <!--
+      Uygulamadaki sabit metinler burada durur.
+      Tek yerden değiştirilir, başka dillere çevrilebilir.
+
+      Not: Hata mesajları ViewModel içinde yazılıdır; orada metni
+      hatanın türüne göre seçiyoruz.
+    -->
+
+    <!-- Telefonun ana ekranında görünen uygulama adı. -->
+    <string name="app_name">Clima</string>
+
+    <!-- Şehir listesi ekranı -->
+    <string name="search_hint">Şehir ara</string>
+    <string name="action_clear">Temizle</string>
+    <string name="action_retry">Tekrar dene</string>
+
+    <!-- Tahmin ekranı -->
+    <string name="detail_title">Hava Tahmini</string>
+    <string name="action_back">Geri</string>
+    <string name="detail_hourly">Saatlik</string>
+    <string name="detail_daily">7 Günlük</string>
+    <string name="detail_feels_like">Hissedilen</string>
+    <string name="detail_humidity">Nem</string>
+    <string name="detail_wind">Rüzgâr</string>
+    <string name="today">Bugün</string>
+
+    <!-- Alt gezinti çubuğu -->
+    <string name="tab_today">Bugün</string>
+    <string name="tab_cities">Şehirler</string>
+    <string name="tab_settings">Ayarlar</string>
+
+    <!-- Şehirler sekmesi -->
+    <string name="cities_title">Şehirler</string>
+    <string name="cities_favorites">Favoriler</string>
+    <string name="cities_recent">Son aramalar</string>
+    <string name="cities_hint_title">Bir şehir ara</string>
+    <string name="cities_hint_message">Aradığın şehirler ve favorilerin burada görünür.</string>
+    <string name="cities_empty_title">Sonuç bulunamadı</string>
+    <string name="cities_empty_message">Farklı bir yazımı dene.</string>
+
+    <!-- Tahmin ekranı ek metinleri -->
+    <string name="now">Şimdi</string>
+    <string name="my_location">Konumum</string>
+    <string name="high_low">En yüksek %1$s · En düşük %2$s</string>
+    <string name="detail_pressure">Basınç</string>
+    <string name="detail_uv">UV indeksi</string>
+    <string name="detail_precipitation">Yağış</string>
+    <string name="detail_sunrise">Gün doğumu</string>
+    <string name="detail_sunset">Gün batımı</string>
+    <string name="action_favorite_add">Favorilere ekle</string>
+    <string name="action_favorite_remove">Favorilerden çıkar</string>
+    <string name="action_share">Paylaş</string>
+    <string name="action_locate">Konumumu bul</string>
+    <string name="action_set_home">Ana şehir yap</string>
+
+    <!-- Ayarlar -->
+    <string name="settings_title">Ayarlar</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_unit">Sıcaklık birimi</string>
+    <string name="settings_notifications">Günlük bildirim</string>
+    <string name="settings_notifications_desc">Her sabah ana şehrinin hava durumunu bildir.</string>
+    <string name="settings_test_notification">Şimdi dene</string>
+    <string name="settings_about">Hakkında</string>
+    <string name="settings_about_text">Clima, Open-Meteo verisiyle çalışır. Anahtar gerektirmez, reklam içermez.</string>
+
+    <!-- Bildirim ve widget -->
+    <string name="notification_channel_name">Günlük hava durumu</string>
+    <string name="widget_description">Ana şehrinin anlık hava durumu</string>
+    <string name="widget_unavailable">Veri yok</string>
+    <string name="settings_permission_denied">Bildirim izni verilmedi.</string>
+    <string name="settings_open_settings">Ayarlar</string>
 </resources>
